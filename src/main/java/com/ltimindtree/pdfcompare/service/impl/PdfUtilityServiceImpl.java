@@ -74,25 +74,6 @@ public class PdfUtilityServiceImpl implements PdfUtilityService {
                 }
                 g2d.dispose();
 
-                /*// Compare pixel values
-                boolean areImagesEqual = true;
-                for (int y = 0; y < height; y++) {
-                    for (int x = 0; x < width; x++) {
-                        int originalPixel = originalImage.getRGB(x, y);
-                        int modifiedPixel = modifiedImage.getRGB(x, y);
-
-                        if (originalPixel != modifiedPixel) {
-                            // Draw a rectangle around the differing pixel
-                            g2d.setColor(Color.RED);
-                            g2d.drawRect(x - 1, y - 1, 3, 3);
-                            areImagesEqual = false;
-
-                        } else {
-                            diffImage.setRGB(x, y, originalPixel);
-                        }
-                    }
-                }
-                g2d.dispose();*/
                 if (!differingAreas.isEmpty()) {
                     diffImagesMap.put(key, Arrays.asList(originalImage, diffImage));
                 }

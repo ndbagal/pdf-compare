@@ -5,23 +5,33 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDCIDFontType2;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
+import org.apache.pdfbox.pdmodel.graphics.color.PDColor;
+import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceRGB;
+import org.apache.pdfbox.pdmodel.graphics.color.PDGamma;
 import org.apache.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationHighlight;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationMarkup;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationTextMarkup;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
+import org.apache.pdfbox.util.Matrix;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Random;
 
 @Slf4j
 public class PDFDifferenceHighlighter extends PDFTextStripper {
 
     private final FileService fileService = new FileServiceImpl();
 
-    public PDFDifferenceHighlighter() throws IOException {
+    public PDFDifferenceHighlighter() {
         super();
     }
 
@@ -74,34 +84,29 @@ public class PDFDifferenceHighlighter extends PDFTextStripper {
 
     private static void highlightDifferences(PDDocument document, List<TextPosition> positions1, List<TextPosition> positions2) throws IOException {
         // Iterate over the positions and draw rectangles or annotations
-        for (int i = 0; i < positions1.size(); i++) {
-            TextPosition pos1 = positions1.get(i);
-            TextPosition pos2 = positions2.get(i);
+        try (PDPageContentStream contentStream = new PDPageContentStream(document, document.getPage(0), PDPageContentStream.AppendMode.APPEND, false)) {
+            for (int i = 0; i < positions1.size(); i++) {
+                TextPosition pos1 = positions1.get(i);
+                TextPosition pos2 = positions2.get(i);
 
-            String pos1FName = ((PDCIDFontType2) ((PDType0Font) pos1.getFont()).getDescendantFont()).getTrueTypeFont().getName();
-            String pos2FName = ((PDCIDFontType2) ((PDType0Font) pos2.getFont()).getDescendantFont()).getTrueTypeFont().getName();
+                String pos1FName = ((PDCIDFontType2) ((PDType0Font) pos1.getFont()).getDescendantFont()).getTrueTypeFont().getName();
+                String pos2FName = ((PDCIDFontType2) ((PDType0Font) pos2.getFont()).getDescendantFont()).getTrueTypeFont().getName();
 
-            if (!pos1FName.equals(pos2FName)) {
-                try (PDPageContentStream contentStream = new PDPageContentStream(document, document.getPage(0), PDPageContentStream.AppendMode.APPEND, false)) {
-                    PDExtendedGraphicsState gs = new PDExtendedGraphicsState();
-                    gs.setStrokingAlphaConstant(0.6f);
-                    gs.setNonStrokingAlphaConstant(0.6f);
-
-                    contentStream.setLineWidth(pos1.getFontSize());
-                    contentStream.setStrokingColor(0f, 0f, 1f, 0f); // Yellow color
-                    contentStream.setGraphicsStateParameters(gs); // 60% opacity (transparency)
-
-                    // Calculate rectangle coordinates based on position information
+                if (!pos1FName.equals(pos2FName)) {
                     float x = pos1.getXDirAdj();
                     float y = pos1.getYDirAdj();
-                    float width = Math.abs(pos1.getWidthDirAdj());
-                    float height = Math.abs(pos1.getHeightDir());
+                    float width = pos1.getWidthDirAdj();
+                    float height = pos1.getHeightDir();
 
-                    log.info("x: {}, y: {}, width: {}, height: {}", x, y, width, height);
-                    log.info("POS1: x: {}, y: {}, width: {}, height: {}", pos1.getXDirAdj(), pos1.getYDirAdj(), pos1.getWidthDirAdj(), pos1.getHeightDir());
-                    log.info("POS2: x: {}, y: {}, width: {}, height: {}", pos2.getXDirAdj(), pos2.getYDirAdj(), pos2.getWidthDirAdj(), pos2.getHeightDir());
-                    contentStream.addRect(x, y, width, height);
-                    contentStream.stroke();
+                    PDAnnotationHighlight highlight = new PDAnnotationHighlight();
+                    PDRectangle position = new PDRectangle(x, y, width, height);
+                    highlight.setRectangle(position);
+                    highlight.setConstantOpacity((float) 0.3); // Set opacity
+                    highlight.setColor(new PDColor(new float[]{1, 1, 0}, PDDeviceRGB.INSTANCE)); // Set highlight color
+                    highlight.setContents(pos1.getUnicode());
+
+                    // Add annotation to the page
+                    document.getPage(0).getAnnotations().add(highlight);
                 }
             }
         }
