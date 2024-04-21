@@ -27,9 +27,7 @@ public class FileServiceImpl implements FileService {
         // Modify the file name to add "_original" before the extension
         String originalFileName = file.getOriginalFilename();
         assert originalFileName != null;
-        String fileNameWithoutExtension = originalFileName.substring(0, originalFileName.lastIndexOf('.'));
-        String fileExtension = originalFileName.substring(originalFileName.lastIndexOf('.'));
-        String modifiedFileName = new Date().getTime() + "_" + fileNameWithoutExtension + "_" + tag + fileExtension;
+        String modifiedFileName = new Date().getTime() + "_" + originalFileName;
 
         // Save the uploaded file with the modified file name to the specified directory
         Path filePath = Paths.get(uploadDir, modifiedFileName);

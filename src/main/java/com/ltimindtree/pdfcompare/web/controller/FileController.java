@@ -39,7 +39,6 @@ public class FileController {
 
     private final PdfUtilityService pdfUtilityService;
     private final FileService fileService;
-    private DrawPrintTextLocations drawPrintTextLocations;
 
     public FileController(PdfUtilityService pdfUtilityService, FileService fileService) {
         this.pdfUtilityService = pdfUtilityService;
@@ -56,14 +55,27 @@ public class FileController {
         if (typeOpt.isEmpty()) typeOpt = Optional.of("image");
         for (MultipartFile original : originalFiles) {
             try {
+                String modifiedFilePath;
                 String originalFilePath = fileService.uploadFile(original, "original");
-                String modifiedFilePath = fileService.uploadFile(
-                        modifiedFiles
-                                .stream()
-                                .filter(multipartFile -> Objects.equals(multipartFile.getOriginalFilename(), original.getOriginalFilename()))
-                                .findFirst().orElseThrow(),
-                        "modified"
-                );
+                if (originalFiles.size() == 1) {
+                    modifiedFilePath = fileService.uploadFile(
+                            modifiedFiles.get(0),
+                            "modified"
+                    );
+                } else {
+                    Optional<MultipartFile> optionalMultipartFile = modifiedFiles
+                            .stream()
+                            .filter(multipartFile -> Objects.equals(multipartFile.getOriginalFilename(), original.getOriginalFilename()))
+                            .findFirst();
+                    if (optionalMultipartFile.isPresent()) {
+                        modifiedFilePath = fileService.uploadFile(
+                                optionalMultipartFile.get(),
+                                "modified"
+                        );
+                    } else {
+                        throw new IllegalArgumentException("No modified file present with name " + original.getOriginalFilename());
+                    }
+                }
 
                 if (typeOpt.get().equals("image")) {
                     // Convert PDF files to images
@@ -166,6 +178,7 @@ public class FileController {
                         if (bufferedImages.isEmpty()) {
                             responses.add(
                                     MyResponse.builder()
+                                            .displayName(original.getOriginalFilename())
                                             .filename("")
                                             .isDiff(false)
                                             .message("Files are identical.")
