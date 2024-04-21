@@ -80,6 +80,7 @@ public class FileController {
                     if (diffImagesMap.isEmpty()) {
                         responses.add(
                                 MyResponse.builder()
+                                        .displayName(original.getOriginalFilename())
                                         .filename("")
                                         .isDiff(false)
                                         .message("Files are identical.")
@@ -92,7 +93,7 @@ public class FileController {
                         // file response
                         responses.add(
                                 MyResponse.builder()
-                                        .displayName(filename) // TODO: Only filename
+                                        .displayName(original.getOriginalFilename())
                                         .filename(filename)
                                         .url(diffPdfPath)
                                         .isDiff(true)
@@ -110,6 +111,7 @@ public class FileController {
                         if (bufferedImages.isEmpty()) {
                             responses.add(
                                     MyResponse.builder()
+                                            .displayName(original.getOriginalFilename())
                                             .filename("")
                                             .isDiff(false)
                                             .message("Files are identical.")
@@ -143,7 +145,7 @@ public class FileController {
                             // file response
                             responses.add(
                                     MyResponse.builder()
-                                            .displayName(filename) // TODO: Only filename
+                                            .displayName(original.getOriginalFilename())
                                             .filename(filename)
                                             .url(diffPdfPath)
                                             .isDiff(true)
@@ -197,7 +199,7 @@ public class FileController {
                             // file response
                             responses.add(
                                     MyResponse.builder()
-                                            .displayName(filename) // TODO: Only filename
+                                            .displayName(original.getOriginalFilename())
                                             .filename(filename)
                                             .url(diffPdfPath)
                                             .isDiff(true)
