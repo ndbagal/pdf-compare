@@ -4,6 +4,7 @@ import com.ltimindtree.pdfcompare.ComparePDFText;
 import com.ltimindtree.pdfcompare.service.FileService;
 import com.ltimindtree.pdfcompare.service.PdfUtilityService;
 import com.ltimindtree.pdfcompare.service.impl.DrawPrintTextLocations;
+import com.ltimindtree.pdfcompare.util.TrackExecutionTime;
 import com.ltimindtree.pdfcompare.web.dto.MyResponse;
 import jakarta.websocket.server.PathParam;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,7 @@ public class FileController {
         this.fileService = fileService;
     }
 
+    @TrackExecutionTime
     @RequestMapping(value = "/compare", method = RequestMethod.POST, consumes = "multipart/form-data")
     public ResponseEntity<List<MyResponse>> comparePDFs(
             @RequestParam("originalFiles") List<MultipartFile> originalFiles,

@@ -1,7 +1,11 @@
 package com.ltimindtree.pdfcompare.service.impl;
 
+import com.github.romankh3.image.comparison.ImageComparison;
+import com.github.romankh3.image.comparison.model.ImageComparisonResult;
+import com.github.romankh3.image.comparison.model.ImageComparisonState;
 import com.ltimindtree.pdfcompare.service.FileService;
 import com.ltimindtree.pdfcompare.service.PdfUtilityService;
+import com.ltimindtree.pdfcompare.util.TrackExecutionTime;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -18,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -46,93 +51,25 @@ public class PdfUtilityServiceImpl implements PdfUtilityService {
 
     @Override
     public Map<Integer, List<BufferedImage>> comparePDFs(
-            Map<Integer, BufferedImage> originalBufferedImagesMap,
-            Map<Integer, BufferedImage> modifiedBufferedImagesMap
+            Map<Integer, BufferedImage> expectedBufferedImagesMap,
+            Map<Integer, BufferedImage> actualBufferedImagesMap
     ) {
 
-        Map<Integer, List<BufferedImage>> diffImagesMap = new HashMap<>();
+        Map<Integer, List<BufferedImage>> diffImagesMap = new ConcurrentHashMap<>();
 
-        if (originalBufferedImagesMap.size() == modifiedBufferedImagesMap.size()) {
-            originalBufferedImagesMap.forEach((key, originalImage) -> {
-                BufferedImage modifiedImage = modifiedBufferedImagesMap.get(key);
+        if (expectedBufferedImagesMap.size() == actualBufferedImagesMap.size()) {
+            expectedBufferedImagesMap.forEach((key, expectedImage) -> {
+                BufferedImage actualImage = actualBufferedImagesMap.get(key);
 
-                // Get image dimensions
-                int width = originalImage.getWidth();
-                int height = originalImage.getHeight();
+                //Create ImageComparison object with result destination and compare the images.
+                ImageComparisonResult imageComparisonResult = new ImageComparison(expectedImage, actualImage).compareImages();
 
-                // Create difference image
-                BufferedImage diffImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-
-                Graphics2D g2d = diffImage.createGraphics();
-                g2d.drawImage(modifiedImage, 0, 0, null);
-
-                // Find differing areas and draw rectangles around them
-                List<Rectangle> differingAreas = findDifferingAreas(originalImage, modifiedImage);
-                g2d.setColor(Color.RED);
-                for (Rectangle rect : differingAreas) {
-                    g2d.drawRect(rect.x, rect.y, rect.width, rect.height);
-                }
-                g2d.dispose();
-
-                if (!differingAreas.isEmpty()) {
-                    diffImagesMap.put(key, Arrays.asList(originalImage, diffImage));
+                if (!imageComparisonResult.getImageComparisonState().equals(ImageComparisonState.MATCH)) {
+                    diffImagesMap.put(key, Arrays.asList(expectedImage, imageComparisonResult.getResult()));
                 }
             });
         }
         return diffImagesMap;
-    }
-
-    private static List<Rectangle> findDifferingAreas(BufferedImage originalImage, BufferedImage modifiedImage) {
-        List<Rectangle> differingAreas = new ArrayList<>();
-        int width = Math.min(originalImage.getWidth(), modifiedImage.getWidth());
-        int height = Math.min(originalImage.getHeight(), modifiedImage.getHeight());
-
-        boolean[][] differingPixels = new boolean[width][height];
-
-        // Compare pixel values
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int originalPixel = originalImage.getRGB(x, y);
-                int modifiedPixel = modifiedImage.getRGB(x, y);
-
-                differingPixels[x][y] = originalPixel != modifiedPixel;
-            }
-        }
-
-        // Find differing areas using a simple connected-components algorithm
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                if (differingPixels[x][y]) {
-                    // Start of a differing area, expand it
-                    int endX = x;
-                    while (endX < width && differingPixels[endX][y]) {
-                        endX++;
-                    }
-
-                    int endY = y;
-                    outer:
-                    while (endY < height) {
-                        for (int i = x; i < endX; i++) {
-                            if (!differingPixels[i][endY]) {
-                                break outer;
-                            }
-                        }
-                        endY++;
-                    }
-
-                    differingAreas.add(new Rectangle(x, y, endX - x, endY - y));
-
-                    // Mark this area as visited to avoid processing it again
-                    for (int i = x; i < endX; i++) {
-                        for (int j = y; j < endY; j++) {
-                            differingPixels[i][j] = false;
-                        }
-                    }
-                }
-            }
-        }
-
-        return differingAreas;
     }
 
     @Override
