@@ -10,7 +10,7 @@ public interface PdfUtilityService {
 
     Map<Integer, BufferedImage> convertPDFToImage(File file) throws IOException, InterruptedException;
 
-    Map<Integer, List<BufferedImage>> comparePDFs(Map<Integer, BufferedImage> originalBufferedImagesMap, Map<Integer, BufferedImage> modifiedBufferedImagesMap) throws IOException;
+    Map<Integer, List<BufferedImage>> comparePDFs(Map<Integer, BufferedImage> originalBufferedImagesMap, Map<Integer, BufferedImage> modifiedBufferedImagesMap) throws IOException, InterruptedException;
 
     String createDiffPdf(Map<Integer, BufferedImage> originalBufferedImagesMap, Map<Integer, List<BufferedImage>> diffImagesMap, String filename);
 }

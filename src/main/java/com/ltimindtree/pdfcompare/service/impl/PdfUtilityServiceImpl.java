@@ -23,6 +23,9 @@ import java.io.IOException;
 import java.util.List;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -53,23 +56,39 @@ public class PdfUtilityServiceImpl implements PdfUtilityService {
     public Map<Integer, List<BufferedImage>> comparePDFs(
             Map<Integer, BufferedImage> expectedBufferedImagesMap,
             Map<Integer, BufferedImage> actualBufferedImagesMap
-    ) {
+    ) throws InterruptedException {
 
         Map<Integer, List<BufferedImage>> diffImagesMap = new ConcurrentHashMap<>();
+
+        ExecutorService executor = Executors.newFixedThreadPool(5);
 
         if (expectedBufferedImagesMap.size() == actualBufferedImagesMap.size()) {
             expectedBufferedImagesMap.forEach((key, expectedImage) -> {
                 BufferedImage actualImage = actualBufferedImagesMap.get(key);
 
-                //Create ImageComparison object with result destination and compare the images.
-                ImageComparisonResult imageComparisonResult = new ImageComparison(expectedImage, actualImage).compareImages();
-
-                if (!imageComparisonResult.getImageComparisonState().equals(ImageComparisonState.MATCH)) {
-                    diffImagesMap.put(key, Arrays.asList(expectedImage, imageComparisonResult.getResult()));
-                }
+                executor.submit(() -> this.compareImage(key, expectedImage, actualImage, diffImagesMap));
             });
         }
+
+        // Shutdown ExecutorService
+        executor.shutdown();
+
+        // Wait for all tasks to complete
+        boolean awaitTermination = executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+
+        if (!awaitTermination) {
+            throw new InterruptedException();
+        }
         return diffImagesMap;
+    }
+
+    private void compareImage(Integer key, BufferedImage expectedImage, BufferedImage actualImage, Map<Integer, List<BufferedImage>> diffImagesMap) {
+        //Create ImageComparison object with result destination and compare the images.
+        ImageComparisonResult imageComparisonResult = new ImageComparison(expectedImage, actualImage).compareImages();
+
+        if (!imageComparisonResult.getImageComparisonState().equals(ImageComparisonState.MATCH)) {
+            diffImagesMap.put(key, Arrays.asList(expectedImage, imageComparisonResult.getResult()));
+        }
     }
 
     @Override
