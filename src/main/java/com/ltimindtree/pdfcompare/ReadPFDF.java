@@ -1,12 +1,15 @@
 package com.ltimindtree.pdfcompare;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
+@Slf4j
 public class ReadPFDF {
 	
  
@@ -27,10 +30,9 @@ public class ReadPFDF {
 			FileWriter myWriter = new FileWriter(home + "/Downloads/" + textFileName + "text.txt");
 			myWriter.write(text);
 			myWriter.close();
-			System.out.println("Successfully wrote to the file.");
+			log.info("Successfully wrote to the file.");
 		} catch (IOException e) {
-			System.out.println("An error occurred.");
-			e.printStackTrace();
+			log.error("An error occurred.", e);
 		}
 		document.close();
 	}

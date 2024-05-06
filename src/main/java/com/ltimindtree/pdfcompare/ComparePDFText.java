@@ -5,10 +5,7 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDCIDFontType2;
-import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.pdfbox.pdmodel.font.PDType0Font;
-import org.apache.pdfbox.pdmodel.font.PDType3Font;
+import org.apache.pdfbox.pdmodel.font.*;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
@@ -19,8 +16,8 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.*;
 
 public class ComparePDFText {
 
@@ -29,10 +26,9 @@ public class ComparePDFText {
     private AffineTransform rotateAT;
     private Graphics2D g2d;
 
-    public List<BufferedImage> compareFontOrText(String originalFilePath, String modifiedFilePath, boolean isFont) throws IOException {
+    public Map<Integer, List<BufferedImage>> compareFontOrText(String originalFilePath, String modifiedFilePath, boolean isFont) throws IOException {
 
-        List<BufferedImage> images = new ArrayList<>();
-        boolean isDiff = false;
+        Map<Integer, List<BufferedImage>> diffImagesMap = new HashMap<>();
         try (PDDocument doc1 = Loader.loadPDF(new File(originalFilePath));
              PDDocument doc2 = Loader.loadPDF(new File(modifiedFilePath))) {
 
@@ -40,11 +36,11 @@ public class ComparePDFText {
             PDFRenderer renderer2 = new PDFRenderer(doc2);
 
             for (int page = 0; page < Math.min(doc1.getNumberOfPages(), doc2.getNumberOfPages()); page++) {
+                boolean isDiff = false;
                 BufferedImage image1 = renderer1.renderImage(page, SCALE);
                 BufferedImage image2 = renderer2.renderImage(page, SCALE);
 
                 PDPage pdPage = doc2.getPage(page);
-                PDRectangle cropBox = pdPage.getCropBox();
 
                 // flip y-axis
                 flipAT = new AffineTransform();
@@ -72,14 +68,9 @@ public class ComparePDFText {
                     rotateAT.rotate(Math.toRadians(rotation));
                 }
 
-                Graphics2D g1d = image1.createGraphics();
-                g1d.setStroke(new BasicStroke(0.1f));
-                g1d.setColor(Color.GREEN);
-                g1d.scale(SCALE, SCALE);
-
                 g2d = image2.createGraphics();
                 g2d.setStroke(new BasicStroke(2));
-                g2d.setColor(new Color(255, 255, 153, 130));
+                g2d.setColor(new Color(255, 0, 0, 51));
                 g2d.scale(SCALE, SCALE);
 
                 List<TextPosition> textPositions1 = getTextPositions(doc1, page + 1);
@@ -108,37 +99,43 @@ public class ComparePDFText {
                     s = rotateAT.createTransformedShape(s);
 
                     if (!isEqual(text1, text2, isFont)) {
-                        g1d.draw(rect);
                         g2d.fill(s);
                         isDiff = true;
                     }
                 }
 
-                g1d.dispose();
-
-                /*// Save the image with differences highlighted
-                String imageFilename = "original_page_" + (page + 1) + "_diff.png";
-                File outputfile = new File(imageFilename);
-                javax.imageio.ImageIO.write(image1, "png", outputfile);*/
-
-                /*imageFilename = "modified_page_" + (page + 1) + "_diff.png";
-                outputfile = new File(imageFilename);
-                javax.imageio.ImageIO.write(image2, "png", outputfile);
-                System.out.println("Page " + (page + 1) + " comparison saved as: " + imageFilename);*/
-                images.add(image2);
+                g2d.dispose();
+                if (isDiff) {
+                    diffImagesMap.put(page + 1, Arrays.asList(image1, image2));
+                }
             }
         }
-        return isDiff ? images : new ArrayList<>();
+        return diffImagesMap.isEmpty() ? new HashMap<>() : diffImagesMap;
     }
 
-    private static boolean isEqual(TextPosition pos1, TextPosition pos2, boolean isFont) throws IOException {
+    private static boolean isEqual(TextPosition pos1, TextPosition pos2, boolean isFont) {
         boolean isEqual = pos1.getUnicode().equals(pos2.getUnicode());
         if (isFont) {
-            String pos1FName = ((PDCIDFontType2) ((PDType0Font) pos1.getFont()).getDescendantFont()).getTrueTypeFont().getName();
-            String pos2FName = ((PDCIDFontType2) ((PDType0Font) pos2.getFont()).getDescendantFont()).getTrueTypeFont().getName();
+            String pos1FName = getFontName(pos1.getFont());
+            String pos2FName = getFontName(pos2.getFont());
+            assert pos1FName != null;
             isEqual = pos1FName.equals(pos2FName);
         }
         return isEqual;
+    }
+
+    private static String getFontName(PDFont pos1Font) {
+        if (pos1Font instanceof PDType3Font t3Font) {
+            return t3Font.getName();
+        } else if (pos1Font instanceof PDVectorFont) {
+            if (pos1Font instanceof PDTrueTypeFont ttFont) {
+                return ttFont.getName();
+            }
+            if (pos1Font instanceof PDType0Font t0font) {
+                return t0font.getDescendantFont().getName();
+            }
+        }
+        return null;
     }
 
     private static List<TextPosition> getTextPositions(PDDocument document, int pageNum) throws IOException {
@@ -146,7 +143,7 @@ public class ComparePDFText {
         PDFTextStripper stripper = new PDFTextStripper() {
 
             @Override
-            protected void writeString(String string, List<TextPosition> text) throws IOException {
+            protected void writeString(String string, List<TextPosition> text) {
                 textPositions.addAll(text);
             }
         };
@@ -154,16 +151,5 @@ public class ComparePDFText {
         stripper.setEndPage(pageNum);
         stripper.getText(document);
         return textPositions;
-    }
-
-    private static boolean textExists(TextPosition text, List<TextPosition> textPositions) {
-        for (TextPosition pos : textPositions) {
-            if (pos.getUnicode().equals(text.getUnicode()) &&
-                    pos.getXDirAdj() == text.getXDirAdj() &&
-                    pos.getYDirAdj() == text.getYDirAdj()) {
-                return true;
-            }
-        }
-        return false;
     }
 }

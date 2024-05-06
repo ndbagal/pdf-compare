@@ -1,14 +1,12 @@
 package com.ltimindtree.pdfcompare;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.*;
 import java.util.HashSet;
 import java.util.Set;
 
+@Slf4j
 public class TextFileComparision {
 
 	//public void CompareTextFiles(String[] urls) {
@@ -50,7 +48,7 @@ public class TextFileComparision {
 				writer.write("Words unique to " + filePath2 + ":" +uniqueToSecondFile + "\n");
 				writer.close();
 			} catch (IOException e) {
-				e.printStackTrace();
+				log.error("Exception occurred.", e);
 			}
 		}
 //	}

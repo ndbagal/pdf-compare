@@ -5,7 +5,6 @@ import com.github.romankh3.image.comparison.model.ImageComparisonResult;
 import com.github.romankh3.image.comparison.model.ImageComparisonState;
 import com.ltimindtree.pdfcompare.service.FileService;
 import com.ltimindtree.pdfcompare.service.PdfUtilityService;
-import com.ltimindtree.pdfcompare.util.TrackExecutionTime;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -38,7 +37,7 @@ public class PdfUtilityServiceImpl implements PdfUtilityService {
     }
 
     @Override
-    public Map<Integer, BufferedImage> convertPDFToImage(File file) throws IOException, InterruptedException {
+    public Map<Integer, BufferedImage> convertPDFToImage(File file) throws IOException {
         PDDocument document = Loader.loadPDF(file);
         PDFRenderer pdfRenderer = new PDFRenderer(document);
 
@@ -66,7 +65,13 @@ public class PdfUtilityServiceImpl implements PdfUtilityService {
             expectedBufferedImagesMap.forEach((key, expectedImage) -> {
                 BufferedImage actualImage = actualBufferedImagesMap.get(key);
 
-                executor.submit(() -> this.compareImage(key, expectedImage, actualImage, diffImagesMap));
+                executor.submit(() -> {
+                    long startTime = System.nanoTime();
+                    log.info("Comparing PDF {}", key);
+                    this.compareImage(key, expectedImage, actualImage, diffImagesMap);
+                    long endTime = System.nanoTime();
+                    log.info("Completed compare PDF {}, took {} ms", key, (endTime - startTime)/1000000);
+                });
             });
         }
 
@@ -84,7 +89,12 @@ public class PdfUtilityServiceImpl implements PdfUtilityService {
 
     private void compareImage(Integer key, BufferedImage expectedImage, BufferedImage actualImage, Map<Integer, List<BufferedImage>> diffImagesMap) {
         //Create ImageComparison object with result destination and compare the images.
-        ImageComparisonResult imageComparisonResult = new ImageComparison(expectedImage, actualImage).compareImages();
+        ImageComparison imageComparison = new ImageComparison(expectedImage, actualImage);
+        imageComparison.setRectangleLineWidth(1);
+        imageComparison.setDifferenceRectangleColor(new Color(255, 0, 0, 51));
+        imageComparison.setDifferenceRectangleFilling(true, 20.0);
+
+        ImageComparisonResult imageComparisonResult = imageComparison.compareImages();
 
         if (!imageComparisonResult.getImageComparisonState().equals(ImageComparisonState.MATCH)) {
             diffImagesMap.put(key, Arrays.asList(expectedImage, imageComparisonResult.getResult()));
@@ -97,23 +107,6 @@ public class PdfUtilityServiceImpl implements PdfUtilityService {
             originalBufferedImagesMap.forEach((key, image) -> {
                 List<BufferedImage> diffImages = diffImagesMap.get(key);
                 if (Objects.isNull(diffImages)) {
-                    /*// Calculate the width and height of the page
-                    float pageWidth = image.getWidth();
-                    float pageHeight = image.getHeight();
-
-                    // Create a new page
-                    PDPage page = new PDPage(new PDRectangle(pageWidth, pageHeight));
-                    document.addPage(page);
-
-                    // Add the image to the page
-                    PDPageContentStream contentStream;
-                    try {
-                        contentStream = new PDPageContentStream(document, page);
-                        contentStream.drawImage(LosslessFactory.createFromImage(document, image), 0, 0);
-                        contentStream.close();
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }*/
                 } else {
                     // Calculate the width and height of the page
                     BufferedImage image1 = diffImages.get(0);
