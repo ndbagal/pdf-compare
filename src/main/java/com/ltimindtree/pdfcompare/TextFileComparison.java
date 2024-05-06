@@ -7,7 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Slf4j
-public class TextFileComparision {
+public class TextFileComparison {
 
 	//public void CompareTextFiles(String[] urls) {
 		public void CompareTextFiles() {

@@ -85,7 +85,7 @@ public class ImageComparator {
             r.ReadPDFfile(pdfFileNameToRead, s);
         }
 
-        TextFileComparision t = new TextFileComparision();
+        TextFileComparison t = new TextFileComparison();
         t.CompareTextFiles();
     }
 }
